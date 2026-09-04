@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 RESULT_SCHEMA_VERSION = "1.0"
 
@@ -47,6 +47,7 @@ class CutoutOptions:
     feather_radius: float = 1.5
     crop_padding_ratio: float = 0.04
     reject_severely_clipped: bool = True
+    alpha_mode: Literal["hard", "soft"] = "soft"
 
     def __post_init__(self) -> None:
         for name in ("confidence_threshold", "mask_threshold", "min_area_ratio"):
@@ -63,6 +64,8 @@ class CutoutOptions:
             raise ValueError("feather_radius cannot be negative")
         if not 0.0 <= self.crop_padding_ratio <= 0.5:
             raise ValueError("crop_padding_ratio must be between 0 and 0.5")
+        if self.alpha_mode not in {"hard", "soft"}:
+            raise ValueError("alpha_mode must be 'hard' or 'soft'")
 
 
 @dataclass(frozen=True, slots=True)

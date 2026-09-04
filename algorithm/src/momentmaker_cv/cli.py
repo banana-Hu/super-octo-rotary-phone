@@ -31,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-people", type=int, default=5)
     parser.add_argument("--confidence", type=float, default=0.70)
     parser.add_argument("--mask-threshold", type=float, default=0.50)
+    parser.add_argument("--alpha-mode", choices=("hard", "soft"), default="soft")
     parser.add_argument("--max-side", type=int, default=1920)
     parser.add_argument("--max-pixels", type=int, default=40_000_000)
     parser.add_argument("--device", choices=("cpu", "cuda"), default=None)
@@ -49,6 +50,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         options = CutoutOptions(
             confidence_threshold=args.confidence,
             mask_threshold=args.mask_threshold,
+            alpha_mode=args.alpha_mode,
             max_people=args.max_people,
             max_input_side=args.max_side,
             max_input_pixels=args.max_pixels,

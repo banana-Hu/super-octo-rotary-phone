@@ -23,3 +23,15 @@ def test_parser_can_keep_partial_people() -> None:
     args = build_parser().parse_args(["photo.jpg", "--output", "output", "--keep-partial-people"])
 
     assert args.keep_partial_people is True
+
+
+def test_parser_accepts_soft_alpha_mode() -> None:
+    args = build_parser().parse_args(["photo.jpg", "--output", "output", "--alpha-mode", "soft"])
+
+    assert args.alpha_mode == "soft"
+
+
+def test_parser_uses_soft_alpha_by_default() -> None:
+    args = build_parser().parse_args(["photo.jpg", "--output", "output"])
+
+    assert args.alpha_mode == "soft"

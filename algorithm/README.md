@@ -43,6 +43,7 @@ momentmaker-cutout .\sample.jpg --output .\output
 --max-people 5        最多输出人数
 --confidence 0.70     人物检测置信度阈值
 --mask-threshold 0.50 掩膜二值化阈值
+--alpha-mode soft|hard 边缘模式；默认 soft，可回退 hard
 --max-side 1920       推理图片最长边限制
 --max-pixels 40000000 输入图片总像素上限
 --device cpu|cuda     指定推理设备；默认自动选择
@@ -52,6 +53,8 @@ momentmaker-cutout .\sample.jpg --output .\output
 默认会过滤贴近左边、右边或上边且主体宽度不足画面 12% 的人物片段，减少模板中出现“半个人”的情况。只贴近底边的人物不会因此被删除；如业务需要保留所有检出结果，可使用 `--keep-partial-people`。
 
 系统先按置信度选出最多 5 个有效人物，再按人物在原图中的水平位置从左到右编号，保证模板放置顺序稳定。
+
+默认 `soft` 模式使用模型原始概率生成连续 Alpha，同时将过渡范围限制在清理后的主体边缘附近，以减少人工羽化产生的光晕。若特定图片出现边缘异常，可通过 `--alpha-mode hard` 回退到二值掩膜加高斯羽化。
 
 命令会向标准输出打印 JSON。退出码为：`0` 成功、`2` 输入无效、`3` 未检出人物、`4` 模型不可用、`5` 部分成功、`6` 后处理或输出失败。
 

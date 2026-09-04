@@ -52,6 +52,34 @@ def _clean_binary_mask(binary: np.ndarray) -> np.ndarray:
     return np.asarray(mask_image, dtype=np.uint8) > 0
 
 
+def _hard_alpha(binary: np.ndarray, feather_radius: float) -> np.ndarray:
+    alpha_image = Image.fromarray(binary.astype(np.uint8) * 255, mode="L")
+    if feather_radius:
+        alpha_image = alpha_image.filter(ImageFilter.GaussianBlur(radius=feather_radius))
+    return np.asarray(alpha_image, dtype=np.uint8)
+
+
+def _soft_alpha(
+    probability: np.ndarray,
+    binary: np.ndarray,
+    mask_threshold: float,
+) -> np.ndarray:
+    """Map model probabilities to a soft edge constrained near the clean mask."""
+
+    low = max(0.0, mask_threshold - 0.20)
+    high = min(1.0, mask_threshold + 0.20)
+    if high <= low:
+        return binary.astype(np.uint8) * 255
+
+    normalized = np.clip((probability - low) / (high - low), 0.0, 1.0)
+    smooth = normalized * normalized * (3.0 - 2.0 * normalized)
+
+    support_image = Image.fromarray(binary.astype(np.uint8) * 255, mode="L")
+    support = np.asarray(support_image.filter(ImageFilter.MaxFilter(size=5))) > 0
+    smooth *= support
+    return np.rint(smooth * 255).astype(np.uint8)
+
+
 def _clamp_box(
     box: tuple[float, float, float, float], size: tuple[int, int]
 ) -> tuple[int, int, int, int]:
@@ -100,12 +128,10 @@ def process_predictions(
             continue
 
         crop_box = _padded_mask_box(binary, options.crop_padding_ratio)
-        alpha_image = Image.fromarray(binary.astype(np.uint8) * 255, mode="L")
-        if options.feather_radius:
-            alpha_image = alpha_image.filter(
-                ImageFilter.GaussianBlur(radius=options.feather_radius)
-            )
-        alpha = np.asarray(alpha_image, dtype=np.uint8)
+        if options.alpha_mode == "soft":
+            alpha = _soft_alpha(probability, binary, options.mask_threshold)
+        else:
+            alpha = _hard_alpha(binary, options.feather_radius)
         processed.append(
             ProcessedMask(
                 score=prediction.score,

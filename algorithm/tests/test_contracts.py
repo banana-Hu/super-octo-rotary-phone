@@ -15,6 +15,15 @@ def test_options_reject_invalid_confidence() -> None:
         CutoutOptions(confidence_threshold=1.1)
 
 
+def test_options_reject_invalid_alpha_mode() -> None:
+    with pytest.raises(ValueError, match="alpha_mode"):
+        CutoutOptions(alpha_mode="unknown")  # type: ignore[arg-type]
+
+
+def test_options_use_soft_alpha_by_default() -> None:
+    assert CutoutOptions().alpha_mode == "soft"
+
+
 def test_result_serializes_paths_and_enums() -> None:
     person = PersonCutout(
         person_id=1,

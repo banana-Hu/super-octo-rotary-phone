@@ -60,7 +60,7 @@ def test_feathering_produces_soft_alpha_edges() -> None:
     result = process_predictions(
         (20, 20),
         [_prediction(0.9, mask)],
-        CutoutOptions(min_area_ratio=0, feather_radius=1.5),
+        CutoutOptions(min_area_ratio=0, feather_radius=1.5, alpha_mode="hard"),
     )[0]
 
     assert np.any((result.alpha > 0) & (result.alpha < 255))
@@ -163,3 +163,33 @@ def test_people_limit_is_applied_before_spatial_ordering() -> None:
     )
 
     assert [item.score for item in results] == [0.95, 0.90]
+
+
+def test_soft_alpha_keeps_smooth_transition_near_clean_mask() -> None:
+    mask = np.zeros((20, 20), dtype=np.float32)
+    mask[4:16, 4:16] = 0.35
+    mask[5:15, 5:15] = 0.50
+    mask[6:14, 6:14] = 0.80
+
+    result = process_predictions(
+        (20, 20),
+        [_prediction(0.9, mask, box=(4, 4, 16, 16))],
+        CutoutOptions(min_area_ratio=0, alpha_mode="soft"),
+    )[0]
+
+    assert result.alpha[0, 0] == 0
+    assert 0 < result.alpha[5, 5] < 255
+    assert result.alpha[10, 10] == 255
+
+
+def test_hard_alpha_remains_binary_when_feathering_is_disabled() -> None:
+    mask = np.zeros((20, 20), dtype=np.float32)
+    mask[5:15, 5:15] = 0.8
+
+    result = process_predictions(
+        (20, 20),
+        [_prediction(0.9, mask, box=(5, 5, 15, 15))],
+        CutoutOptions(min_area_ratio=0, feather_radius=0, alpha_mode="hard"),
+    )[0]
+
+    assert set(np.unique(result.alpha)) == {0, 255}
