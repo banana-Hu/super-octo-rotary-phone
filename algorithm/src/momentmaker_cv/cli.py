@@ -17,6 +17,7 @@ EXIT_CODES = {
     ProcessingStatus.INVALID_INPUT: 2,
     ProcessingStatus.MODEL_ERROR: 4,
     ProcessingStatus.PARTIAL_SUCCESS: 5,
+    ProcessingStatus.PROCESSING_ERROR: 6,
 }
 
 
@@ -31,6 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--confidence", type=float, default=0.70)
     parser.add_argument("--mask-threshold", type=float, default=0.50)
     parser.add_argument("--max-side", type=int, default=1920)
+    parser.add_argument("--max-pixels", type=int, default=40_000_000)
     parser.add_argument("--device", choices=("cpu", "cuda"), default=None)
     parser.add_argument(
         "--keep-partial-people",
@@ -49,6 +51,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             mask_threshold=args.mask_threshold,
             max_people=args.max_people,
             max_input_side=args.max_side,
+            max_input_pixels=args.max_pixels,
             reject_severely_clipped=not args.keep_partial_people,
         )
     except ValueError as exc:

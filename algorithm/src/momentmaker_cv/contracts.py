@@ -15,6 +15,7 @@ class ProcessingStatus(StrEnum):
     NO_PERSON = "no_person"
     INVALID_INPUT = "invalid_input"
     MODEL_ERROR = "model_error"
+    PROCESSING_ERROR = "processing_error"
     PARTIAL_SUCCESS = "partial_success"
 
 
@@ -27,6 +28,7 @@ class CutoutOptions:
     min_area_ratio: float = 0.01
     max_people: int = 5
     max_input_side: int = 1920
+    max_input_pixels: int = 40_000_000
     feather_radius: float = 1.5
     crop_padding_ratio: float = 0.04
     reject_severely_clipped: bool = True
@@ -40,6 +42,8 @@ class CutoutOptions:
             raise ValueError("max_people must be at least 1")
         if self.max_input_side < 256:
             raise ValueError("max_input_side must be at least 256")
+        if self.max_input_pixels < 1:
+            raise ValueError("max_input_pixels must be positive")
         if self.feather_radius < 0:
             raise ValueError("feather_radius cannot be negative")
         if not 0.0 <= self.crop_padding_ratio <= 0.5:

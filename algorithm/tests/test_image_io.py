@@ -37,3 +37,11 @@ def test_load_image_rejects_non_image(tmp_path: Path) -> None:
 def test_load_image_rejects_missing_file(tmp_path: Path) -> None:
     with pytest.raises(InvalidImageError, match="does not exist"):
         load_image(tmp_path / "missing.jpg")
+
+
+def test_load_image_rejects_excessive_pixel_count_before_decode(tmp_path: Path) -> None:
+    source = tmp_path / "large.png"
+    Image.new("RGB", (20, 20), "white").save(source)
+
+    with pytest.raises(InvalidImageError, match="too many pixels"):
+        load_image(source, max_pixels=399)

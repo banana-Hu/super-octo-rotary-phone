@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 from PIL import Image
 
 from momentmaker_cv.contracts import CutoutOptions, ProcessingStatus
@@ -15,6 +16,11 @@ class FakeSegmenter:
 
     def predict(self, image: Image.Image) -> list[MaskPrediction]:
         return self.predictions
+
+
+class BrokenSegmenter:
+    def predict(self, image: Image.Image) -> list[MaskPrediction]:
+        raise ValueError("invalid model output")
 
 
 def test_pipeline_exports_transparent_people_preview_and_manifest(tmp_path: Path) -> None:
@@ -64,3 +70,47 @@ def test_pipeline_reports_invalid_input_without_running_model(tmp_path: Path) ->
 
     assert result.status is ProcessingStatus.INVALID_INPUT
     assert result.error and "does not exist" in result.error
+
+
+def test_pipeline_converts_unexpected_model_exception_to_result(tmp_path: Path) -> None:
+    source = tmp_path / "source.png"
+    Image.new("RGB", (50, 50), "white").save(source)
+
+    result = process_image(source, tmp_path / "output", segmenter=BrokenSegmenter())
+
+    assert result.status is ProcessingStatus.MODEL_ERROR
+    assert result.error == "invalid model output"
+
+
+def test_pipeline_converts_export_exception_to_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.png"
+    Image.new("RGB", (50, 50), "white").save(source)
+
+    def fail_export(*_args: object, **_kwargs: object) -> None:
+        raise OSError("disk is read-only")
+
+    monkeypatch.setattr("momentmaker_cv.pipeline.export_people", fail_export)
+    result = process_image(source, tmp_path / "output", segmenter=FakeSegmenter([]))
+
+    assert result.status is ProcessingStatus.PROCESSING_ERROR
+    assert result.error == "artifact export failed: disk is read-only"
+
+
+def test_pipeline_returns_partial_success_when_manifest_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.png"
+    Image.new("RGB", (50, 50), "white").save(source)
+
+    def fail_manifest(*_args: object, **_kwargs: object) -> None:
+        raise OSError("manifest is locked")
+
+    monkeypatch.setattr("momentmaker_cv.pipeline.export_manifest", fail_manifest)
+    result = process_image(source, tmp_path / "output", segmenter=FakeSegmenter([]))
+
+    assert result.status is ProcessingStatus.PARTIAL_SUCCESS
+    assert result.preview_path and result.preview_path.exists()
+    assert result.manifest_path is None
+    assert result.error == "manifest export failed: manifest is locked"

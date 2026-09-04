@@ -30,7 +30,11 @@ def _fit_within(size: tuple[int, int], max_side: int) -> tuple[int, int]:
     return max(1, round(width * scale)), max(1, round(height * scale))
 
 
-def load_image(path: str | Path, max_side: int = 1920) -> LoadedImage:
+def load_image(
+    path: str | Path,
+    max_side: int = 1920,
+    max_pixels: int = 40_000_000,
+) -> LoadedImage:
     """Load a JPEG/PNG/WebP, apply EXIF orientation and optionally downscale it."""
 
     source = Path(path)
@@ -38,11 +42,18 @@ def load_image(path: str | Path, max_side: int = 1920) -> LoadedImage:
         raise InvalidImageError(f"input file does not exist: {source}")
     if max_side < 256:
         raise ValueError("max_side must be at least 256")
+    if max_pixels < 1:
+        raise ValueError("max_pixels must be positive")
 
     try:
         with Image.open(source) as opened:
             if opened.format not in SUPPORTED_FORMATS:
                 raise InvalidImageError(f"unsupported image format: {opened.format or 'unknown'}")
+            if opened.width * opened.height > max_pixels:
+                raise InvalidImageError(
+                    f"image has too many pixels: {opened.width * opened.height} "
+                    f"(limit: {max_pixels})"
+                )
             opened.load()
             oriented = ImageOps.exif_transpose(opened)
             original_size = oriented.size

@@ -10,11 +10,7 @@ from .exporter import export_manifest, export_people
 from .image_io import InvalidImageError, load_image
 from .mask_processing import process_predictions
 from .preview import create_preview
-from .segmenter import (
-    ModelUnavailableError,
-    PersonSegmenter,
-    TorchvisionMaskRCNNSegmenter,
-)
+from .segmenter import PersonSegmenter, TorchvisionMaskRCNNSegmenter
 
 
 def _elapsed_ms(started: float) -> float:
@@ -36,7 +32,11 @@ def process_image(
 
     started = perf_counter()
     try:
-        loaded = load_image(source, max_side=settings.max_input_side)
+        loaded = load_image(
+            source,
+            max_side=settings.max_input_side,
+            max_pixels=settings.max_input_pixels,
+        )
     except InvalidImageError as exc:
         return ProcessingResult(
             status=ProcessingStatus.INVALID_INPUT,
@@ -51,7 +51,7 @@ def process_image(
     detector = segmenter or TorchvisionMaskRCNNSegmenter()
     try:
         predictions = detector.predict(loaded.image)
-    except (ModelUnavailableError, RuntimeError) as exc:
+    except Exception as exc:
         timing["inference"] = _elapsed_ms(inference_started)
         timing["total"] = _elapsed_ms(started)
         return ProcessingResult(
@@ -66,14 +66,40 @@ def process_image(
     timing["inference"] = _elapsed_ms(inference_started)
 
     post_started = perf_counter()
-    masks = process_predictions(loaded.processed_size, predictions, settings)
+    try:
+        masks = process_predictions(loaded.processed_size, predictions, settings)
+    except Exception as exc:
+        timing["postprocess"] = _elapsed_ms(post_started)
+        timing["total"] = _elapsed_ms(started)
+        return ProcessingResult(
+            status=ProcessingStatus.PROCESSING_ERROR,
+            input_path=source,
+            output_dir=destination,
+            original_size=loaded.original_size,
+            processed_size=loaded.processed_size,
+            error=f"post-processing failed: {exc}",
+            timing_ms=timing,
+        )
     timing["postprocess"] = _elapsed_ms(post_started)
 
     export_started = perf_counter()
-    destination.mkdir(parents=True, exist_ok=True)
-    people, cutout_images = export_people(loaded.image, masks, destination)
-    preview_path = destination / "preview.png"
-    create_preview(cutout_images, preview_path)
+    try:
+        destination.mkdir(parents=True, exist_ok=True)
+        people, cutout_images = export_people(loaded.image, masks, destination)
+        preview_path = destination / "preview.png"
+        create_preview(cutout_images, preview_path)
+    except Exception as exc:
+        timing["export"] = _elapsed_ms(export_started)
+        timing["total"] = _elapsed_ms(started)
+        return ProcessingResult(
+            status=ProcessingStatus.PROCESSING_ERROR,
+            input_path=source,
+            output_dir=destination,
+            original_size=loaded.original_size,
+            processed_size=loaded.processed_size,
+            error=f"artifact export failed: {exc}",
+            timing_ms=timing,
+        )
     timing["export"] = _elapsed_ms(export_started)
     timing["total"] = _elapsed_ms(started)
 
@@ -90,5 +116,19 @@ def process_image(
         warnings=("No person passed the quality filters.",) if not people else (),
         timing_ms=timing,
     )
-    export_manifest(result, manifest_path)
-    return result
+    try:
+        export_manifest(result, manifest_path)
+        return result
+    except Exception as exc:
+        return ProcessingResult(
+            status=ProcessingStatus.PARTIAL_SUCCESS,
+            input_path=source,
+            output_dir=destination,
+            original_size=loaded.original_size,
+            processed_size=loaded.processed_size,
+            people=people,
+            preview_path=preview_path,
+            warnings=("People and preview were exported, but result.json was not written.",),
+            error=f"manifest export failed: {exc}",
+            timing_ms=timing,
+        )
