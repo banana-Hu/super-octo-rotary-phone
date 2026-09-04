@@ -22,6 +22,12 @@ uploads/
 *.tmp
 *.zip
 __pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+algorithm/output/
+algorithm/models/
 .DS_Store
 Thumbs.db
 .idea/

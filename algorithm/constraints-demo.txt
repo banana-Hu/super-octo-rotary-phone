@@ -1,0 +1,8 @@
+# Versions verified together for the hackathon demo environment.
+# Keep pyproject.toml broad for library users; use this file for reproducible setup.
+numpy==2.5.2
+Pillow==12.3.0
+pytest==9.1.1
+ruff==0.16.6
+torch==2.14.0
+torchvision==0.29.0
