@@ -1,0 +1,28 @@
+# Dependencies and build output
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+.netrc
+
+# Local evidence, uploads and temporary files
+checks/
+uploads/
+*.log
+*.tmp
+*.zip
+__pycache__/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
