@@ -8,6 +8,9 @@ from PIL import Image, ImageDraw
 
 from .exporter import save_png_atomic
 
+PREVIEW_LIGHT_BG = "#F8FAFC"
+PREVIEW_DARK_BG = "#263241"
+
 
 def _contain(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     copy = image.copy()
@@ -22,7 +25,20 @@ def create_preview(cutouts: list[Image.Image], target: Path) -> None:
 
     for index, slot in enumerate(slots):
         left, top, right, bottom = slot
-        draw.rounded_rectangle(slot, radius=24, fill="#FFFFFF", outline="#D8DEE8", width=2)
+        card_size = (right - left, bottom - top)
+        card = Image.new("RGB", card_size, PREVIEW_LIGHT_BG)
+        ImageDraw.Draw(card).rectangle(
+            (card_size[0] // 2, 0, card_size[0], card_size[1]),
+            fill=PREVIEW_DARK_BG,
+        )
+        rounded_mask = Image.new("L", card_size, 0)
+        ImageDraw.Draw(rounded_mask).rounded_rectangle(
+            (0, 0, card_size[0] - 1, card_size[1] - 1),
+            radius=24,
+            fill=255,
+        )
+        canvas.paste(card, (left, top), rounded_mask)
+        draw.rounded_rectangle(slot, radius=24, outline="#D8DEE8", width=2)
         if index >= len(cutouts):
             continue
         fitted = _contain(cutouts[index], (right - left - 28, bottom - top - 28))
