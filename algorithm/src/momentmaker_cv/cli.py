@@ -32,6 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mask-threshold", type=float, default=0.50)
     parser.add_argument("--max-side", type=int, default=1920)
     parser.add_argument("--device", choices=("cpu", "cuda"), default=None)
+    parser.add_argument(
+        "--keep-partial-people",
+        action="store_true",
+        help="keep narrow person fragments clipped by the left, right or top edge",
+    )
     return parser
 
 
@@ -44,6 +49,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             mask_threshold=args.mask_threshold,
             max_people=args.max_people,
             max_input_side=args.max_side,
+            reject_severely_clipped=not args.keep_partial_people,
         )
     except ValueError as exc:
         parser.error(str(exc))

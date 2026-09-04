@@ -20,6 +20,20 @@ class ProcessedMask:
     pixel_area: int
 
 
+def _is_severely_clipped(box: tuple[int, int, int, int], image_size: tuple[int, int]) -> bool:
+    """Reject narrow fragments cut by a side or the top of the source image."""
+
+    width, height = image_size
+    left, top, right, _bottom = box
+    edge_margin_x = max(2, round(width * 0.01))
+    edge_margin_y = max(2, round(height * 0.01))
+    touches_cutting_edge = (
+        left <= edge_margin_x or right >= width - edge_margin_x or top <= edge_margin_y
+    )
+    person_width_ratio = (right - left) / width
+    return touches_cutting_edge and person_width_ratio < 0.12
+
+
 def _resize_probability_mask(mask: np.ndarray, size: tuple[int, int]) -> np.ndarray:
     if mask.shape == (size[1], size[0]):
         return np.clip(mask.astype(np.float32), 0.0, 1.0)
@@ -76,6 +90,9 @@ def process_predictions(
     for prediction in sorted(predictions, key=lambda item: item.score, reverse=True):
         if prediction.score < options.confidence_threshold:
             continue
+        source_box = _clamp_box(prediction.box, image_size)
+        if options.reject_severely_clipped and _is_severely_clipped(source_box, image_size):
+            continue
         probability = _resize_probability_mask(prediction.mask, image_size)
         binary = _clean_binary_mask(probability >= options.mask_threshold)
         pixel_area = int(binary.sum())
@@ -92,7 +109,7 @@ def process_predictions(
         processed.append(
             ProcessedMask(
                 score=prediction.score,
-                source_box=_clamp_box(prediction.box, image_size),
+                source_box=source_box,
                 crop_box=crop_box,
                 alpha=alpha,
                 pixel_area=pixel_area,

@@ -29,6 +29,7 @@ class CutoutOptions:
     max_input_side: int = 1920
     feather_radius: float = 1.5
     crop_padding_ratio: float = 0.04
+    reject_severely_clipped: bool = True
 
     def __post_init__(self) -> None:
         for name in ("confidence_threshold", "mask_threshold", "min_area_ratio"):

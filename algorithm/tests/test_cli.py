@@ -17,3 +17,9 @@ def test_cli_reports_missing_input_without_loading_model(
 
     assert exit_code == 2
     assert '"status": "invalid_input"' in capsys.readouterr().out
+
+
+def test_parser_can_keep_partial_people() -> None:
+    args = build_parser().parse_args(["photo.jpg", "--output", "output", "--keep-partial-people"])
+
+    assert args.keep_partial_people is True

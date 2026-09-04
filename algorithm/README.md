@@ -44,7 +44,10 @@ momentmaker-cutout .\sample.jpg --output .\output
 --mask-threshold 0.50 掩膜二值化阈值
 --max-side 1920       推理图片最长边限制
 --device cpu|cuda     指定推理设备；默认自动选择
+--keep-partial-people 保留贴近画面边缘的狭窄残缺人物
 ```
+
+默认会过滤贴近左边、右边或上边且主体宽度不足画面 12% 的人物片段，减少模板中出现“半个人”的情况。只贴近底边的人物不会因此被删除；如业务需要保留所有检出结果，可使用 `--keep-partial-people`。
 
 命令会向标准输出打印 JSON。退出码为：`0` 成功、`2` 输入无效、`3` 未检出人物、`4` 模型不可用、`5` 部分成功。
 

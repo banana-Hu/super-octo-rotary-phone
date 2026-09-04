@@ -5,8 +5,12 @@ from momentmaker_cv.mask_processing import process_predictions
 from momentmaker_cv.segmenter import MaskPrediction
 
 
-def _prediction(score: float, mask: np.ndarray) -> MaskPrediction:
-    return MaskPrediction(score=score, box=(1.2, 2.1, 8.8, 9.9), mask=mask)
+def _prediction(
+    score: float,
+    mask: np.ndarray,
+    box: tuple[float, float, float, float] = (1.2, 2.1, 8.8, 9.9),
+) -> MaskPrediction:
+    return MaskPrediction(score=score, box=box, mask=mask)
 
 
 def test_process_predictions_filters_score_and_small_area() -> None:
@@ -60,3 +64,63 @@ def test_feathering_produces_soft_alpha_edges() -> None:
     )[0]
 
     assert np.any((result.alpha > 0) & (result.alpha < 255))
+
+
+def test_rejects_narrow_person_fragment_clipped_by_side_edge() -> None:
+    mask = np.zeros((100, 100), dtype=np.float32)
+    mask[20:90, 0:8] = 1.0
+    prediction = _prediction(0.95, mask, box=(0, 20, 8, 90))
+
+    results = process_predictions(
+        (100, 100),
+        [prediction],
+        CutoutOptions(min_area_ratio=0, feather_radius=0),
+    )
+
+    assert results == []
+
+
+def test_keeps_partial_person_when_filter_is_disabled() -> None:
+    mask = np.zeros((100, 100), dtype=np.float32)
+    mask[20:90, 0:8] = 1.0
+    prediction = _prediction(0.95, mask, box=(0, 20, 8, 90))
+
+    results = process_predictions(
+        (100, 100),
+        [prediction],
+        CutoutOptions(
+            min_area_ratio=0,
+            feather_radius=0,
+            reject_severely_clipped=False,
+        ),
+    )
+
+    assert len(results) == 1
+
+
+def test_keeps_person_touching_only_bottom_edge() -> None:
+    mask = np.zeros((100, 100), dtype=np.float32)
+    mask[20:100, 40:50] = 1.0
+    prediction = _prediction(0.95, mask, box=(40, 20, 50, 100))
+
+    results = process_predictions(
+        (100, 100),
+        [prediction],
+        CutoutOptions(min_area_ratio=0, feather_radius=0),
+    )
+
+    assert len(results) == 1
+
+
+def test_keeps_wide_person_even_when_touching_side_edge() -> None:
+    mask = np.zeros((100, 100), dtype=np.float32)
+    mask[10:90, 0:30] = 1.0
+    prediction = _prediction(0.95, mask, box=(0, 10, 30, 90))
+
+    results = process_predictions(
+        (100, 100),
+        [prediction],
+        CutoutOptions(min_area_ratio=0, feather_radius=0),
+    )
+
+    assert len(results) == 1
