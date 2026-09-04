@@ -26,6 +26,7 @@ dev = [
 
 [project.scripts]
 momentmaker-cutout = "momentmaker_cv.cli:main"
+momentmaker-check = "momentmaker_cv.diagnostics:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

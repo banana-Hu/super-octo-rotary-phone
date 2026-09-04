@@ -83,6 +83,12 @@ class TorchvisionMaskRCNNSegmenter:
         self._transform: Any = None
         self._lock = RLock()
 
+    @property
+    def active_device(self) -> str | None:
+        """Device selected after model initialization, if available."""
+
+        return self._device
+
     def _load(self) -> None:
         with self._lock:
             if self._model is not None:

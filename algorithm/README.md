@@ -39,6 +39,24 @@ python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
+## 演示机准备与自检
+
+联网安装完成后，提前运行一次模型自检。该命令会下载或读取本地缓存中的权重，并完成一次最小推理：
+
+```powershell
+momentmaker-check --device cpu
+```
+
+输出中的 `status` 为 `ready` 才表示模型可以使用。比赛现场没有验证过 CUDA 环境时，建议明确使用 `--device cpu`；使用 GPU 前应在实际演示机上将参数改为 `--device cuda` 并完成同样的检查。
+
+准备好一张已获授权、画面中至少有一人的测试照片后，可以执行完整验收：
+
+```powershell
+momentmaker-check .\sample.jpg --output .\output\smoke --device cpu
+```
+
+完整验收会运行人物分割，并自动检查人物 PNG 是否为 RGBA、是否包含有效透明区域，以及预览图、清单和人数是否一致。测试图片和生成结果仅保留在本地，不提交到仓库。
+
 ## 命令行使用
 
 ```powershell
