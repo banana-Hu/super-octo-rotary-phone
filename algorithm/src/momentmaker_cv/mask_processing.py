@@ -1,0 +1,104 @@
+"""Mask filtering, cleanup, feathering and crop calculation."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+from PIL import Image, ImageFilter
+
+from .contracts import CutoutOptions
+from .segmenter import MaskPrediction
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessedMask:
+    score: float
+    source_box: tuple[int, int, int, int]
+    crop_box: tuple[int, int, int, int]
+    alpha: np.ndarray
+    pixel_area: int
+
+
+def _resize_probability_mask(mask: np.ndarray, size: tuple[int, int]) -> np.ndarray:
+    if mask.shape == (size[1], size[0]):
+        return np.clip(mask.astype(np.float32), 0.0, 1.0)
+    image = Image.fromarray(mask.astype(np.float32), mode="F")
+    resized = image.resize(size, Image.Resampling.BILINEAR)
+    return np.clip(np.asarray(resized, dtype=np.float32), 0.0, 1.0)
+
+
+def _clean_binary_mask(binary: np.ndarray) -> np.ndarray:
+    """Remove isolated pixels and close narrow holes using Pillow filters."""
+
+    mask_image = Image.fromarray(binary.astype(np.uint8) * 255, mode="L")
+    mask_image = mask_image.filter(ImageFilter.MedianFilter(size=3))
+    mask_image = mask_image.filter(ImageFilter.MaxFilter(size=3))
+    mask_image = mask_image.filter(ImageFilter.MinFilter(size=3))
+    return np.asarray(mask_image, dtype=np.uint8) > 0
+
+
+def _clamp_box(
+    box: tuple[float, float, float, float], size: tuple[int, int]
+) -> tuple[int, int, int, int]:
+    width, height = size
+    left = max(0, min(width - 1, int(np.floor(box[0]))))
+    top = max(0, min(height - 1, int(np.floor(box[1]))))
+    right = max(left + 1, min(width, int(np.ceil(box[2]))))
+    bottom = max(top + 1, min(height, int(np.ceil(box[3]))))
+    return left, top, right, bottom
+
+
+def _padded_mask_box(binary: np.ndarray, padding_ratio: float) -> tuple[int, int, int, int]:
+    rows, columns = np.nonzero(binary)
+    left, right = int(columns.min()), int(columns.max()) + 1
+    top, bottom = int(rows.min()), int(rows.max()) + 1
+    padding = round(max(right - left, bottom - top) * padding_ratio)
+    return (
+        max(0, left - padding),
+        max(0, top - padding),
+        min(binary.shape[1], right + padding),
+        min(binary.shape[0], bottom + padding),
+    )
+
+
+def process_predictions(
+    image_size: tuple[int, int],
+    predictions: list[MaskPrediction],
+    options: CutoutOptions,
+) -> list[ProcessedMask]:
+    """Apply deterministic quality filters and return up to ``max_people`` masks."""
+
+    width, height = image_size
+    minimum_area = width * height * options.min_area_ratio
+    processed: list[ProcessedMask] = []
+
+    for prediction in sorted(predictions, key=lambda item: item.score, reverse=True):
+        if prediction.score < options.confidence_threshold:
+            continue
+        probability = _resize_probability_mask(prediction.mask, image_size)
+        binary = _clean_binary_mask(probability >= options.mask_threshold)
+        pixel_area = int(binary.sum())
+        if pixel_area < minimum_area:
+            continue
+
+        crop_box = _padded_mask_box(binary, options.crop_padding_ratio)
+        alpha_image = Image.fromarray(binary.astype(np.uint8) * 255, mode="L")
+        if options.feather_radius:
+            alpha_image = alpha_image.filter(
+                ImageFilter.GaussianBlur(radius=options.feather_radius)
+            )
+        alpha = np.asarray(alpha_image, dtype=np.uint8)
+        processed.append(
+            ProcessedMask(
+                score=prediction.score,
+                source_box=_clamp_box(prediction.box, image_size),
+                crop_box=crop_box,
+                alpha=alpha,
+                pixel_area=pixel_area,
+            )
+        )
+        if len(processed) >= options.max_people:
+            break
+
+    return processed

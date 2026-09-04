@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "momentmaker-cv"
+version = "0.1.0"
+description = "Person cutout pipeline for the MomentMaker hackathon MVP"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+license = "MIT"
+dependencies = [
+  "numpy>=2.1",
+  "Pillow>=11.0",
+]
+
+[project.optional-dependencies]
+model = [
+  "torch>=2.7",
+  "torchvision>=0.22",
+]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.12",
+]
+
+[project.scripts]
+momentmaker-cutout = "momentmaker_cv.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
