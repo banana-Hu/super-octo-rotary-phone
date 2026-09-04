@@ -24,6 +24,14 @@ python -m venv .venv
 python -m pip install -e ".[model,dev]"
 ```
 
+比赛演示机建议使用仓库中已经验证过的直接依赖版本：
+
+```powershell
+python -m pip install -c constraints-demo.txt -e ".[model,dev]"
+```
+
+`constraints-demo.txt` 记录的是 Windows + Python 3.14 环境中完成单元测试和真实图片推理时使用的版本。它只锁定本模块直接使用的依赖，不锁定操作系统相关的间接依赖。普通开发仍可使用上方不带约束文件的安装命令。
+
 只运行不涉及真实模型的单元测试时，可安装轻量依赖：
 
 ```powershell

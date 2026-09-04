@@ -2,6 +2,14 @@
 
 本文档说明业务后端如何调用人物抠图模块，不包含 HTTP 接口或后端框架实现。
 
+比赛演示环境应在 `algorithm/` 下使用以下命令安装经过验证的依赖组合：
+
+```powershell
+python -m pip install -c constraints-demo.txt -e ".[model]"
+```
+
+约束文件用于复现演示环境，不改变 Python 调用接口，也不要求业务后端提交虚拟环境或模型权重。
+
 ## 调用入口
 
 ```python
