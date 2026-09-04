@@ -34,6 +34,32 @@ def test_result_serializes_paths_and_enums() -> None:
 
     payload = result.to_dict()
 
+    assert payload["schema_version"] == "1.0"
     assert payload["status"] == "success"
-    assert payload["people"][0]["output_path"] == "people\\person_01.png"
+    assert payload["people"][0]["output_path"] == "people/person_01.png"
     assert payload["people"][0]["source_box"] == [10, 20, 110, 220]
+
+
+def test_result_serializes_artifacts_relative_to_output_directory(tmp_path: Path) -> None:
+    output_dir = tmp_path / "job-123"
+    person = PersonCutout(
+        person_id=1,
+        confidence=0.9,
+        source_box=(0, 0, 10, 20),
+        output_path=output_dir / "people" / "person_01.png",
+        pixel_area=100,
+    )
+    result = ProcessingResult(
+        status=ProcessingStatus.SUCCESS,
+        input_path=tmp_path / "input.jpg",
+        output_dir=output_dir,
+        people=(person,),
+        preview_path=output_dir / "preview.png",
+        manifest_path=output_dir / "result.json",
+    )
+
+    payload = result.to_dict()
+
+    assert payload["people"][0]["output_path"] == "people/person_01.png"
+    assert payload["preview_path"] == "preview.png"
+    assert payload["manifest_path"] == "result.json"

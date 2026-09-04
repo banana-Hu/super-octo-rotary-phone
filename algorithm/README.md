@@ -55,13 +55,15 @@ momentmaker-cutout .\sample.jpg --output .\output
 ## Python 调用
 
 ```python
-from momentmaker_cv.pipeline import process_image
+from momentmaker_cv import process_image
 
 result = process_image("group.jpg", "output")
 print(result.status, result.people)
 ```
 
 `process_image` 也接受自定义 `PersonSegmenter`，便于测试或替换模型，不依赖特定前后端框架。
+
+供后端使用的稳定字段、状态处理和路径规则见 [INTEGRATION.md](INTEGRATION.md)。
 
 ## 输出目录
 
@@ -74,7 +76,7 @@ output/
 └── result.json
 ```
 
-`result.json` 包含处理状态、图片尺寸、人物置信度、人物框、透明图路径、像素面积、耗时和警告。人物框坐标基于最长边缩放后的处理图片。
+`result.json` 使用版本化 JSON 契约，包含处理状态、图片尺寸、人物置信度、人物框、透明图路径、像素面积、耗时和警告。所有产物路径均相对于输出目录并使用 `/` 分隔；人物框坐标基于最长边缩放后的处理图片。
 
 ## 当前边界
 

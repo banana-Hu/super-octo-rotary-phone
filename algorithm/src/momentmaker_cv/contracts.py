@@ -7,6 +7,21 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+RESULT_SCHEMA_VERSION = "1.0"
+
+
+def _portable_path(path: Path) -> str:
+    return path.as_posix()
+
+
+def _artifact_path(path: Path, output_dir: Path | None) -> str:
+    if output_dir is None:
+        return _portable_path(path)
+    try:
+        return _portable_path(path.resolve().relative_to(output_dir.resolve()))
+    except ValueError:
+        return _portable_path(path)
+
 
 class ProcessingStatus(StrEnum):
     """Machine-readable pipeline outcomes."""
@@ -60,10 +75,10 @@ class PersonCutout:
     output_path: Path
     pixel_area: int
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, output_dir: Path | None = None) -> dict[str, Any]:
         data = asdict(self)
         data["source_box"] = list(self.source_box)
-        data["output_path"] = str(self.output_path)
+        data["output_path"] = _artifact_path(self.output_path, output_dir)
         return data
 
 
@@ -85,14 +100,19 @@ class ProcessingResult:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "schema_version": RESULT_SCHEMA_VERSION,
             "status": self.status.value,
-            "input_path": str(self.input_path),
-            "output_dir": str(self.output_dir),
+            "input_path": _portable_path(self.input_path),
+            "output_dir": _portable_path(self.output_dir),
             "original_size": list(self.original_size) if self.original_size else None,
             "processed_size": list(self.processed_size) if self.processed_size else None,
-            "people": [person.to_dict() for person in self.people],
-            "preview_path": str(self.preview_path) if self.preview_path else None,
-            "manifest_path": str(self.manifest_path) if self.manifest_path else None,
+            "people": [person.to_dict(self.output_dir) for person in self.people],
+            "preview_path": (
+                _artifact_path(self.preview_path, self.output_dir) if self.preview_path else None
+            ),
+            "manifest_path": (
+                _artifact_path(self.manifest_path, self.output_dir) if self.manifest_path else None
+            ),
             "warnings": list(self.warnings),
             "error": self.error,
             "timing_ms": self.timing_ms,

@@ -46,8 +46,12 @@ def test_pipeline_exports_transparent_people_preview_and_manifest(tmp_path: Path
         assert cutout.mode == "RGBA"
         assert cutout.getchannel("A").getextrema() == (0, 255)
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == "1.0"
     assert manifest["status"] == "success"
     assert len(manifest["people"]) == 1
+    assert manifest["people"][0]["output_path"] == "people/person_01.png"
+    assert manifest["preview_path"] == "preview.png"
+    assert manifest["manifest_path"] == "result.json"
 
 
 def test_pipeline_returns_no_person_and_still_exports_manifest(tmp_path: Path) -> None:
