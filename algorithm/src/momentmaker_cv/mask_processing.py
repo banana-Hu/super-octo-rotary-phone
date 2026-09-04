@@ -118,4 +118,10 @@ def process_predictions(
         if len(processed) >= options.max_people:
             break
 
-    return processed
+    return sorted(
+        processed,
+        key=lambda item: (
+            (item.source_box[0] + item.source_box[2]) / 2,
+            item.source_box[1],
+        ),
+    )

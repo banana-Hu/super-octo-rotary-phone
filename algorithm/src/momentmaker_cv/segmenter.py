@@ -7,6 +7,7 @@ code remain fast. The default adapter uses torchvision's BSD-licensed Mask R-CNN
 from __future__ import annotations
 
 from dataclasses import dataclass
+from threading import RLock
 from typing import Any, Protocol
 
 import numpy as np
@@ -80,51 +81,55 @@ class TorchvisionMaskRCNNSegmenter:
         self._device: str | None = None
         self._model: Any = None
         self._transform: Any = None
+        self._lock = RLock()
 
     def _load(self) -> None:
-        if self._model is not None:
-            return
-        try:
-            import torch
-            from torchvision.models.detection import (
-                MaskRCNN_ResNet50_FPN_V2_Weights,
-                maskrcnn_resnet50_fpn_v2,
-            )
-        except (ImportError, OSError) as exc:
-            raise ModelUnavailableError(
-                "Mask R-CNN is unavailable. Install the model extra with `pip install -e .[model]`."
-            ) from exc
+        with self._lock:
+            if self._model is not None:
+                return
+            try:
+                import torch
+                from torchvision.models.detection import (
+                    MaskRCNN_ResNet50_FPN_V2_Weights,
+                    maskrcnn_resnet50_fpn_v2,
+                )
+            except (ImportError, OSError) as exc:
+                raise ModelUnavailableError(
+                    "Mask R-CNN is unavailable. Install the model extra with "
+                    "`pip install -e .[model]`."
+                ) from exc
 
-        if self.requested_device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        else:
-            device = self.requested_device
-        if device.startswith("cuda") and not torch.cuda.is_available():
-            raise ModelUnavailableError("CUDA was requested but is not available")
+            if self.requested_device is None:
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            else:
+                device = self.requested_device
+            if device.startswith("cuda") and not torch.cuda.is_available():
+                raise ModelUnavailableError("CUDA was requested but is not available")
 
-        weights = MaskRCNN_ResNet50_FPN_V2_Weights.DEFAULT
-        try:
-            model = maskrcnn_resnet50_fpn_v2(weights=weights)
-            model.eval().to(device)
-        except Exception as exc:
-            raise ModelUnavailableError(f"could not initialize Mask R-CNN: {exc}") from exc
+            weights = MaskRCNN_ResNet50_FPN_V2_Weights.COCO_V1
+            try:
+                model = maskrcnn_resnet50_fpn_v2(weights=weights)
+                model.eval().to(device)
+            except Exception as exc:
+                raise ModelUnavailableError(f"could not initialize Mask R-CNN: {exc}") from exc
 
-        self._device = device
-        self._model = model
-        self._transform = weights.transforms()
+            self._device = device
+            self._model = model
+            self._transform = weights.transforms()
 
     def predict(self, image: Image.Image) -> list[MaskPrediction]:
-        self._load()
-        try:
-            import torch
+        with self._lock:
+            self._load()
+            try:
+                import torch
 
-            tensor = self._transform(image).to(self._device)
-            with torch.inference_mode():
-                output = self._model([tensor])[0]
-            return predictions_from_tensors(
-                output["labels"], output["scores"], output["boxes"], output["masks"]
-            )
-        except ModelUnavailableError:
-            raise
-        except Exception as exc:
-            raise RuntimeError(f"Mask R-CNN inference failed: {exc}") from exc
+                tensor = self._transform(image).to(self._device)
+                with torch.inference_mode():
+                    output = self._model([tensor])[0]
+                return predictions_from_tensors(
+                    output["labels"], output["scores"], output["boxes"], output["masks"]
+                )
+            except ModelUnavailableError:
+                raise
+            except Exception as exc:
+                raise RuntimeError(f"Mask R-CNN inference failed: {exc}") from exc

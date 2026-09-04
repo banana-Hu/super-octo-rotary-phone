@@ -118,3 +118,25 @@ def test_pipeline_returns_partial_success_when_manifest_fails(
     assert result.preview_path and result.preview_path.exists()
     assert result.manifest_path is None
     assert result.error == "manifest export failed: manifest is locked"
+
+
+def test_pipeline_reuses_default_segmenter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from momentmaker_cv import pipeline
+
+    source = tmp_path / "source.png"
+    Image.new("RGB", (50, 50), "white").save(source)
+    shared = FakeSegmenter([])
+    calls = 0
+
+    def predict(image: Image.Image) -> list[MaskPrediction]:
+        nonlocal calls
+        calls += 1
+        return []
+
+    monkeypatch.setattr(shared, "predict", predict)
+    monkeypatch.setattr(pipeline, "_DEFAULT_SEGMENTER", shared)
+
+    process_image(source, tmp_path / "first")
+    process_image(source, tmp_path / "second")
+
+    assert calls == 2

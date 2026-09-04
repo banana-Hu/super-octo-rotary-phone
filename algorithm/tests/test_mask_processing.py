@@ -124,3 +124,42 @@ def test_keeps_wide_person_even_when_touching_side_edge() -> None:
     )
 
     assert len(results) == 1
+
+
+def test_selected_people_are_ordered_from_left_to_right() -> None:
+    mask = np.ones((100, 100), dtype=np.float32)
+    predictions = [
+        _prediction(0.99, mask, box=(70, 10, 90, 90)),
+        _prediction(0.90, mask, box=(10, 10, 30, 90)),
+        _prediction(0.95, mask, box=(40, 10, 60, 90)),
+    ]
+
+    results = process_predictions(
+        (100, 100),
+        predictions,
+        CutoutOptions(min_area_ratio=0, feather_radius=0),
+    )
+
+    assert [item.score for item in results] == [0.90, 0.95, 0.99]
+
+
+def test_people_limit_is_applied_before_spatial_ordering() -> None:
+    mask = np.ones((100, 100), dtype=np.float32)
+    predictions = [
+        _prediction(0.60, mask, box=(5, 10, 25, 90)),
+        _prediction(0.95, mask, box=(35, 10, 55, 90)),
+        _prediction(0.90, mask, box=(65, 10, 85, 90)),
+    ]
+
+    results = process_predictions(
+        (100, 100),
+        predictions,
+        CutoutOptions(
+            confidence_threshold=0.5,
+            max_people=2,
+            min_area_ratio=0,
+            feather_radius=0,
+        ),
+    )
+
+    assert [item.score for item in results] == [0.95, 0.90]

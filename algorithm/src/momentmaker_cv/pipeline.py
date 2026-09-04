@@ -12,6 +12,8 @@ from .mask_processing import process_predictions
 from .preview import create_preview
 from .segmenter import PersonSegmenter, TorchvisionMaskRCNNSegmenter
 
+_DEFAULT_SEGMENTER = TorchvisionMaskRCNNSegmenter()
+
 
 def _elapsed_ms(started: float) -> float:
     return round((perf_counter() - started) * 1000, 2)
@@ -48,7 +50,7 @@ def process_image(
     timing["load"] = _elapsed_ms(started)
 
     inference_started = perf_counter()
-    detector = segmenter or TorchvisionMaskRCNNSegmenter()
+    detector = segmenter if segmenter is not None else _DEFAULT_SEGMENTER
     try:
         predictions = detector.predict(loaded.image)
     except Exception as exc:
