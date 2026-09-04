@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from pathlib import Path
 
@@ -11,6 +12,8 @@ from PIL import Image
 
 from .contracts import PersonCutout, ProcessingResult
 from .mask_processing import ProcessedMask
+
+PERSON_ARTIFACT_PATTERN = re.compile(r"person_[0-9]{2,}\.png")
 
 
 def _temporary_sibling(target: Path) -> Path:
@@ -54,6 +57,30 @@ def export_people(
         )
 
     return tuple(metadata), cutout_images
+
+
+def cleanup_stale_people(
+    output_dir: Path,
+    current_people: tuple[PersonCutout, ...],
+) -> tuple[str, ...]:
+    """Remove only obsolete files that exactly match this module's naming scheme."""
+
+    people_dir = output_dir / "people"
+    if not people_dir.is_dir():
+        return ()
+
+    current_names = {person.output_path.name for person in current_people}
+    warnings: list[str] = []
+    for candidate in people_dir.iterdir():
+        if not PERSON_ARTIFACT_PATTERN.fullmatch(candidate.name):
+            continue
+        if candidate.name in current_names:
+            continue
+        try:
+            candidate.unlink()
+        except OSError as exc:
+            warnings.append(f"Could not remove stale artifact people/{candidate.name}: {exc}")
+    return tuple(warnings)
 
 
 def export_manifest(result: ProcessingResult, target: Path) -> None:

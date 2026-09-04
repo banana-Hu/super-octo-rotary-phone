@@ -6,7 +6,7 @@ from pathlib import Path
 from time import perf_counter
 
 from .contracts import CutoutOptions, ProcessingResult, ProcessingStatus
-from .exporter import export_manifest, export_people
+from .exporter import cleanup_stale_people, export_manifest, export_people
 from .image_io import InvalidImageError, load_image
 from .mask_processing import process_predictions
 from .preview import create_preview
@@ -90,6 +90,7 @@ def process_image(
         people, cutout_images = export_people(loaded.image, masks, destination)
         preview_path = destination / "preview.png"
         create_preview(cutout_images, preview_path)
+        cleanup_warnings = cleanup_stale_people(destination, people)
     except Exception as exc:
         timing["export"] = _elapsed_ms(export_started)
         timing["total"] = _elapsed_ms(started)
@@ -106,6 +107,9 @@ def process_image(
     timing["total"] = _elapsed_ms(started)
 
     manifest_path = destination / "result.json"
+    result_warnings = list(cleanup_warnings)
+    if not people:
+        result_warnings.insert(0, "No person passed the quality filters.")
     result = ProcessingResult(
         status=(ProcessingStatus.SUCCESS if people else ProcessingStatus.NO_PERSON),
         input_path=source,
@@ -115,7 +119,7 @@ def process_image(
         people=people,
         preview_path=preview_path,
         manifest_path=manifest_path,
-        warnings=("No person passed the quality filters.",) if not people else (),
+        warnings=tuple(result_warnings),
         timing_ms=timing,
     )
     try:

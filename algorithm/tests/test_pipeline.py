@@ -57,12 +57,16 @@ def test_pipeline_exports_transparent_people_preview_and_manifest(tmp_path: Path
 def test_pipeline_returns_no_person_and_still_exports_manifest(tmp_path: Path) -> None:
     source = tmp_path / "empty.png"
     Image.new("RGB", (50, 50), "white").save(source)
+    stale = tmp_path / "output" / "people" / "person_03.png"
+    stale.parent.mkdir(parents=True)
+    stale.write_bytes(b"old result")
 
     result = process_image(source, tmp_path / "output", segmenter=FakeSegmenter([]))
 
     assert result.status is ProcessingStatus.NO_PERSON
     assert result.people == ()
     assert result.manifest_path and result.manifest_path.exists()
+    assert not stale.exists()
 
 
 def test_pipeline_reports_invalid_input_without_running_model(tmp_path: Path) -> None:
