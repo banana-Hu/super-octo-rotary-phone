@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from momentmaker_cv.contracts import PersonCutout
-from momentmaker_cv.exporter import cleanup_stale_people
+from momentmaker_cv.contracts import PersonCutout, SubjectCutout
+from momentmaker_cv.exporter import cleanup_stale_people, cleanup_stale_subjects
 
 
 def _person(path: Path, person_id: int = 1) -> PersonCutout:
@@ -70,3 +70,21 @@ def test_cleanup_reports_delete_failure_without_raising(
     assert len(warnings) == 1
     assert "people/person_02.png" in warnings[0]
     assert "file is locked" in warnings[0]
+
+
+def test_cleanup_removes_only_obsolete_subject_artifacts(tmp_path: Path) -> None:
+    subjects_dir = tmp_path / "subjects"
+    subjects_dir.mkdir()
+    current = subjects_dir / "subject_01.png"
+    stale = subjects_dir / "subject_02.png"
+    unrelated = subjects_dir / "layout.json"
+    for path in (current, stale, unrelated):
+        path.write_bytes(b"content")
+    subject = SubjectCutout(1, (1, 2), "people", (0, 0, 10, 20), current, 100)
+
+    warnings = cleanup_stale_subjects(tmp_path, (subject,))
+
+    assert warnings == ()
+    assert current.exists()
+    assert not stale.exists()
+    assert unrelated.exists()
