@@ -10,10 +10,12 @@ from pathlib import Path
 
 from PIL import Image
 
-from .contracts import PersonCutout, ProcessingResult
+from .contracts import PersonCutout, ProcessingResult, SubjectCutout
 from .mask_processing import ProcessedMask
+from .subject_processing import ProcessedSubjectMask
 
 PERSON_ARTIFACT_PATTERN = re.compile(r"person_[0-9]{2,}\.png")
+SUBJECT_ARTIFACT_PATTERN = re.compile(r"subject_[0-9]{2,}\.png")
 
 
 def _temporary_sibling(target: Path) -> Path:
@@ -59,6 +61,32 @@ def export_people(
     return tuple(metadata), cutout_images
 
 
+def export_subjects(
+    image: Image.Image,
+    masks: list[ProcessedSubjectMask],
+    output_dir: Path,
+) -> tuple[SubjectCutout, ...]:
+    subjects_dir = output_dir / "subjects"
+    metadata: list[SubjectCutout] = []
+    for index, processed in enumerate(masks, start=1):
+        rgba = image.convert("RGBA")
+        rgba.putalpha(Image.fromarray(processed.alpha, mode="L"))
+        cropped = rgba.crop(processed.crop_box)
+        target = subjects_dir / f"subject_{index:02d}.png"
+        save_png_atomic(cropped, target)
+        metadata.append(
+            SubjectCutout(
+                subject_id=index,
+                member_person_ids=processed.member_person_ids,
+                mode=processed.mode,
+                source_box=processed.source_box,
+                output_path=target,
+                pixel_area=processed.pixel_area,
+            )
+        )
+    return tuple(metadata)
+
+
 def cleanup_stale_people(
     output_dir: Path,
     current_people: tuple[PersonCutout, ...],
@@ -80,6 +108,27 @@ def cleanup_stale_people(
             candidate.unlink()
         except OSError as exc:
             warnings.append(f"Could not remove stale artifact people/{candidate.name}: {exc}")
+    return tuple(warnings)
+
+
+def cleanup_stale_subjects(
+    output_dir: Path,
+    current_subjects: tuple[SubjectCutout, ...],
+) -> tuple[str, ...]:
+    subjects_dir = output_dir / "subjects"
+    if not subjects_dir.is_dir():
+        return ()
+    current_names = {subject.output_path.name for subject in current_subjects}
+    warnings: list[str] = []
+    for candidate in subjects_dir.iterdir():
+        if not SUBJECT_ARTIFACT_PATTERN.fullmatch(candidate.name):
+            continue
+        if candidate.name in current_names:
+            continue
+        try:
+            candidate.unlink()
+        except OSError as exc:
+            warnings.append(f"Could not remove stale artifact subjects/{candidate.name}: {exc}")
     return tuple(warnings)
 
 

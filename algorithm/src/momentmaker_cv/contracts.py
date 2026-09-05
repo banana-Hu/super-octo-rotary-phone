@@ -48,6 +48,7 @@ class CutoutOptions:
     crop_padding_ratio: float = 0.04
     reject_severely_clipped: bool = True
     alpha_mode: Literal["hard", "soft"] = "soft"
+    subject_mode: Literal["none", "people", "foreground"] = "people"
 
     def __post_init__(self) -> None:
         for name in ("confidence_threshold", "mask_threshold", "min_area_ratio"):
@@ -66,6 +67,8 @@ class CutoutOptions:
             raise ValueError("crop_padding_ratio must be between 0 and 0.5")
         if self.alpha_mode not in {"hard", "soft"}:
             raise ValueError("alpha_mode must be 'hard' or 'soft'")
+        if self.subject_mode not in {"none", "people", "foreground"}:
+            raise ValueError("subject_mode must be 'none', 'people' or 'foreground'")
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +89,25 @@ class PersonCutout:
 
 
 @dataclass(frozen=True, slots=True)
+class SubjectCutout:
+    """Metadata for one template-ready person group."""
+
+    subject_id: int
+    member_person_ids: tuple[int, ...]
+    mode: Literal["people", "foreground"]
+    source_box: tuple[int, int, int, int]
+    output_path: Path
+    pixel_area: int
+
+    def to_dict(self, output_dir: Path | None = None) -> dict[str, Any]:
+        data = asdict(self)
+        data["member_person_ids"] = list(self.member_person_ids)
+        data["source_box"] = list(self.source_box)
+        data["output_path"] = _artifact_path(self.output_path, output_dir)
+        return data
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingResult:
     """Complete result returned by both Python API and CLI."""
 
@@ -100,6 +122,8 @@ class ProcessingResult:
     warnings: tuple[str, ...] = ()
     error: str | None = None
     timing_ms: dict[str, float] = field(default_factory=dict)
+    subjects: tuple[SubjectCutout, ...] = ()
+    primary_subject_id: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -110,6 +134,8 @@ class ProcessingResult:
             "original_size": list(self.original_size) if self.original_size else None,
             "processed_size": list(self.processed_size) if self.processed_size else None,
             "people": [person.to_dict(self.output_dir) for person in self.people],
+            "subjects": [subject.to_dict(self.output_dir) for subject in self.subjects],
+            "primary_subject_id": self.primary_subject_id,
             "preview_path": (
                 _artifact_path(self.preview_path, self.output_dir) if self.preview_path else None
             ),

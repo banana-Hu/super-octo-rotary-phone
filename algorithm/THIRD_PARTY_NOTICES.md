@@ -6,6 +6,8 @@
 | --- | --- | --- |
 | PyTorch | 模型推理运行时 | BSD-3-Clause |
 | Torchvision | Mask R-CNN 实现与预训练权重入口 | BSD-3-Clause |
+| transparent-background | InSPyReNet 前景模型适配与权重入口 | MIT |
+| InSPyReNet | 可选显著前景分割模型 | MIT |
 | NumPy | 数组计算 | BSD-3-Clause |
 | Pillow | 图像读写与滤镜 | HPND |
 | pytest | 开发测试 | MIT |
@@ -14,6 +16,8 @@
 
 - PyTorch：<https://github.com/pytorch/pytorch>
 - Torchvision：<https://github.com/pytorch/vision>
+- transparent-background：<https://github.com/plemeri/transparent-background>
+- InSPyReNet：<https://github.com/plemeri/InSPyReNet>
 - NumPy：<https://github.com/numpy/numpy>
 - Pillow：<https://github.com/python-pillow/Pillow>
 - pytest：<https://github.com/pytest-dev/pytest>

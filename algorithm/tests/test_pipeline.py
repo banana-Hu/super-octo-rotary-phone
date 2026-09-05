@@ -23,6 +23,19 @@ class BrokenSegmenter:
         raise ValueError("invalid model output")
 
 
+class FakeForegroundSegmenter:
+    def __init__(self, mask: np.ndarray) -> None:
+        self.mask = mask
+
+    def predict(self, image: Image.Image) -> np.ndarray:
+        return self.mask
+
+
+class BrokenForegroundSegmenter:
+    def predict(self, image: Image.Image) -> np.ndarray:
+        raise RuntimeError("foreground unavailable")
+
+
 def test_pipeline_exports_transparent_people_preview_and_manifest(tmp_path: Path) -> None:
     source = tmp_path / "group.jpg"
     Image.new("RGB", (100, 80), "#336699").save(source)
@@ -39,6 +52,8 @@ def test_pipeline_exports_transparent_people_preview_and_manifest(tmp_path: Path
 
     assert result.status is ProcessingStatus.SUCCESS
     assert len(result.people) == 1
+    assert len(result.subjects) == 1
+    assert result.primary_subject_id == 1
     assert result.people[0].output_path.exists()
     assert result.preview_path and result.preview_path.exists()
     assert result.manifest_path and result.manifest_path.exists()
@@ -49,6 +64,7 @@ def test_pipeline_exports_transparent_people_preview_and_manifest(tmp_path: Path
     assert manifest["schema_version"] == "1.0"
     assert manifest["status"] == "success"
     assert len(manifest["people"]) == 1
+    assert manifest["subjects"][0]["member_person_ids"] == [1]
     assert manifest["people"][0]["output_path"] == "people/person_01.png"
     assert manifest["preview_path"] == "preview.png"
     assert manifest["manifest_path"] == "result.json"
@@ -144,3 +160,73 @@ def test_pipeline_reuses_default_segmenter(tmp_path: Path, monkeypatch: pytest.M
     process_image(source, tmp_path / "second")
 
     assert calls == 2
+
+
+def test_pipeline_enhances_subject_with_connected_foreground(tmp_path: Path) -> None:
+    source = tmp_path / "person-with-object.png"
+    Image.new("RGB", (100, 80), "#336699").save(source)
+    person_mask = np.zeros((80, 100), dtype=np.float32)
+    person_mask[10:70, 20:50] = 1.0
+    foreground = person_mask.copy()
+    foreground[30:55, 48:75] = 1.0
+
+    result = process_image(
+        source,
+        tmp_path / "output",
+        CutoutOptions(min_area_ratio=0, subject_mode="foreground"),
+        FakeSegmenter([MaskPrediction(0.99, (20, 10, 50, 70), person_mask)]),
+        FakeForegroundSegmenter(foreground),
+    )
+
+    assert result.status is ProcessingStatus.SUCCESS
+    assert result.subjects[0].mode == "foreground"
+    assert result.subjects[0].output_path.exists()
+    with (
+        Image.open(result.subjects[0].output_path) as subject,
+        Image.open(result.people[0].output_path) as person,
+    ):
+        assert subject.mode == "RGBA"
+        assert subject.width > person.width
+
+
+def test_pipeline_falls_back_when_foreground_model_fails(tmp_path: Path) -> None:
+    source = tmp_path / "person.png"
+    Image.new("RGB", (100, 80), "white").save(source)
+    mask = np.zeros((80, 100), dtype=np.float32)
+    mask[10:70, 20:60] = 1.0
+
+    result = process_image(
+        source,
+        tmp_path / "output",
+        CutoutOptions(min_area_ratio=0, subject_mode="foreground"),
+        FakeSegmenter([MaskPrediction(0.99, (20, 10, 60, 70), mask)]),
+        BrokenForegroundSegmenter(),
+    )
+
+    assert result.status is ProcessingStatus.SUCCESS
+    assert result.subjects[0].mode == "people"
+    assert any("foreground unavailable" in warning for warning in result.warnings)
+
+
+def test_pipeline_marks_largest_subject_as_primary(tmp_path: Path) -> None:
+    source = tmp_path / "two-distant-people.png"
+    Image.new("RGB", (120, 80), "white").save(source)
+    small = np.zeros((80, 120), dtype=np.float32)
+    small[20:60, 5:20] = 1.0
+    large = np.zeros((80, 120), dtype=np.float32)
+    large[5:75, 55:110] = 1.0
+
+    result = process_image(
+        source,
+        tmp_path / "output",
+        CutoutOptions(min_area_ratio=0),
+        FakeSegmenter(
+            [
+                MaskPrediction(0.99, (5, 20, 20, 60), small),
+                MaskPrediction(0.98, (55, 5, 110, 75), large),
+            ]
+        ),
+    )
+
+    assert len(result.subjects) == 2
+    assert result.primary_subject_id == 2

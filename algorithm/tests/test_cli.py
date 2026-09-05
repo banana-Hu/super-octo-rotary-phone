@@ -35,3 +35,16 @@ def test_parser_uses_soft_alpha_by_default() -> None:
     args = build_parser().parse_args(["photo.jpg", "--output", "output"])
 
     assert args.alpha_mode == "soft"
+
+
+def test_parser_uses_people_subject_mode_by_default() -> None:
+    args = build_parser().parse_args(["photo.jpg", "--output", "output"])
+
+    assert args.subject_mode == "people"
+
+
+@pytest.mark.parametrize("mode", ["none", "people", "foreground"])
+def test_parser_accepts_subject_modes(mode: str) -> None:
+    args = build_parser().parse_args(["photo.jpg", "--output", "output", "--subject-mode", mode])
+
+    assert args.subject_mode == mode

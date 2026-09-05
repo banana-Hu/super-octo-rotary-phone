@@ -6,6 +6,7 @@ from .contracts import (
     PersonCutout,
     ProcessingResult,
     ProcessingStatus,
+    SubjectCutout,
 )
 from .pipeline import process_image
 
@@ -15,5 +16,6 @@ __all__ = [
     "PersonCutout",
     "ProcessingResult",
     "ProcessingStatus",
+    "SubjectCutout",
     "process_image",
 ]

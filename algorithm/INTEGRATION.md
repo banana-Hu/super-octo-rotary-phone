@@ -5,7 +5,7 @@
 比赛演示环境应在 `algorithm/` 下使用以下命令安装经过验证的依赖组合：
 
 ```powershell
-python -m pip install -c constraints-demo.txt -e ".[model]"
+python -m pip install -c constraints-demo.txt -e ".[model,foreground]"
 ```
 
 约束文件用于复现演示环境，不改变 Python 调用接口，也不要求业务后端提交虚拟环境或模型权重。
@@ -18,7 +18,7 @@ from momentmaker_cv import CutoutOptions, process_image
 result = process_image(
     input_path="uploads/job-123/source.jpg",
     output_dir="artifacts/job-123",
-    options=CutoutOptions(max_people=5),
+    options=CutoutOptions(max_people=5, subject_mode="foreground"),
 )
 
 payload = result.to_dict()
@@ -26,7 +26,7 @@ payload = result.to_dict()
 
 未显式传入 `segmenter` 时，同一 Python 进程会复用一个默认模型实例，避免每个请求重复加载权重。默认模型内部会串行执行推理，适合单进程 MVP；如果后续需要更高吞吐量，应由部署层按进程或设备分配模型实例。
 
-调用方负责保存上传文件、尽量分配互不冲突的任务目录，并根据自身数据策略删除原图和结果。算法模块负责读取单张图片并在指定目录生成产物。若重复使用同一目录，模块只会清理由自身命名且不再属于本次结果的 `people/person_数字.png`，其他文件不会被删除。
+调用方负责保存上传文件、尽量分配互不冲突的任务目录，并根据自身数据策略删除原图和结果。算法模块负责读取单张图片并在指定目录生成产物。若重复使用同一目录，模块只会清理由自身命名且不再属于本次结果的 `people/person_数字.png` 和 `subjects/subject_数字.png`，其他文件不会被删除。
 
 ## JSON 契约 1.0
 
@@ -47,6 +47,17 @@ payload = result.to_dict()
       "pixel_area": 280000
     }
   ],
+  "subjects": [
+    {
+      "subject_id": 1,
+      "member_person_ids": [1, 2],
+      "mode": "foreground",
+      "source_box": [80, 60, 1100, 1050],
+      "output_path": "subjects/subject_01.png",
+      "pixel_area": 620000
+    }
+  ],
+  "primary_subject_id": 1,
   "preview_path": "preview.png",
   "manifest_path": "result.json",
   "warnings": [],
@@ -54,6 +65,7 @@ payload = result.to_dict()
   "timing_ms": {
     "load": 12.4,
     "inference": 7200.1,
+    "foreground": 9400.2,
     "postprocess": 210.3,
     "export": 180.6,
     "total": 7603.4
@@ -62,6 +74,8 @@ payload = result.to_dict()
 ```
 
 产物路径相对于 `output_dir`，并始终使用 `/` 分隔，调用方可安全地拼接本地路径或转换为静态资源 URL。`input_path` 和 `output_dir` 保留调用时的路径语义。
+
+`subject_mode="people"` 是默认值，只组合距离较近的人物。`subject_mode="none"` 不输出主体组合。`subject_mode="foreground"` 会额外运行前景模型，尽量保留人物连接物体；失败时自动生成 `people` 模式主体并写入告警。模板流程可先使用 `primary_subject_id` 选择主要主体；需要展示其他主体或单独排版人物时，再读取完整 `subjects` 或 `people`。没有主体时该字段为 `null`。
 
 ## 状态处理
 
