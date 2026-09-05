@@ -54,15 +54,21 @@ python -m pytest
 momentmaker-check --device cpu
 ```
 
+使用前景增强模式时，必须同时预热并检查 InSPyReNet：
+
+```powershell
+momentmaker-check --device cpu --subject-mode foreground
+```
+
 输出中的 `status` 为 `ready` 才表示模型可以使用。比赛现场没有验证过 CUDA 环境时，建议明确使用 `--device cpu`；使用 GPU 前应在实际演示机上将参数改为 `--device cuda` 并完成同样的检查。
 
 准备好一张已获授权、画面中至少有一人的测试照片后，可以执行完整验收：
 
 ```powershell
-momentmaker-check .\sample.jpg --output .\output\smoke --device cpu
+momentmaker-check .\sample.jpg --output .\output\smoke --device cpu --subject-mode foreground
 ```
 
-完整验收会运行人物分割，并自动检查人物 PNG 是否为 RGBA、是否包含有效透明区域，以及预览图、清单和人数是否一致。测试图片和生成结果仅保留在本地，不提交到仓库。
+完整验收会运行人物分割，并自动检查逐人及主体 PNG 是否为 RGBA、是否包含有效透明区域，以及预览图、清单、人物编号、主体数量和主主体编号是否一致。指定 `foreground` 时还会确认增强模式没有静默降级。测试图片和生成结果仅保留在本地，不提交到仓库。
 
 ## 命令行使用
 
@@ -120,7 +126,7 @@ output/
 └── result.json
 ```
 
-`result.json` 使用版本化 JSON 契约，包含处理状态、图片尺寸、逐人结果、主体组合、耗时和警告。`subjects[].member_person_ids` 表示组合包含的逐人编号，`mode` 表示实际使用 `people` 或 `foreground`。所有产物路径均相对于输出目录并使用 `/` 分隔；坐标基于最长边缩放后的处理图片。
+`result.json` 使用版本化 JSON 契约，包含处理状态、图片尺寸、逐人结果、主体组合、耗时和警告。`subjects[].member_person_ids` 表示组合包含的逐人编号，`mode` 表示实际使用 `people` 或 `foreground`。`primary_subject_id` 指向透明像素面积最大的主体，供模板流程直接选择主要元素。所有产物路径均相对于输出目录并使用 `/` 分隔；坐标基于最长边缩放后的处理图片。
 
 重复使用同一个输出目录时，模块会在新结果成功生成后删除 `people/` 和 `subjects/` 下多余的算法产物。清理不递归，也不会删除不符合命名规则的文件；删除失败会记录在 `warnings` 中，不影响本次有效结果。
 

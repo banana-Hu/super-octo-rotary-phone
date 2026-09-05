@@ -57,6 +57,7 @@ payload = result.to_dict()
       "pixel_area": 620000
     }
   ],
+  "primary_subject_id": 1,
   "preview_path": "preview.png",
   "manifest_path": "result.json",
   "warnings": [],
@@ -74,7 +75,7 @@ payload = result.to_dict()
 
 产物路径相对于 `output_dir`，并始终使用 `/` 分隔，调用方可安全地拼接本地路径或转换为静态资源 URL。`input_path` 和 `output_dir` 保留调用时的路径语义。
 
-`subject_mode="people"` 是默认值，只组合距离较近的人物。`subject_mode="none"` 不输出主体组合。`subject_mode="foreground"` 会额外运行前景模型，尽量保留人物连接物体；失败时自动生成 `people` 模式主体并写入告警。模板流程优先使用 `subjects`，需要单独排版人物时继续使用 `people`。
+`subject_mode="people"` 是默认值，只组合距离较近的人物。`subject_mode="none"` 不输出主体组合。`subject_mode="foreground"` 会额外运行前景模型，尽量保留人物连接物体；失败时自动生成 `people` 模式主体并写入告警。模板流程可先使用 `primary_subject_id` 选择主要主体；需要展示其他主体或单独排版人物时，再读取完整 `subjects` 或 `people`。没有主体时该字段为 `null`。
 
 ## 状态处理
 

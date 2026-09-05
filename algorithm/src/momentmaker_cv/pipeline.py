@@ -135,6 +135,9 @@ def process_image(
         destination.mkdir(parents=True, exist_ok=True)
         people, cutout_images = export_people(loaded.image, masks, destination)
         subjects = export_subjects(loaded.image, subject_masks, destination)
+        primary_subject_id = (
+            max(subjects, key=lambda subject: subject.pixel_area).subject_id if subjects else None
+        )
         preview_path = destination / "preview.png"
         create_preview(cutout_images, preview_path)
         cleanup_warnings = (
@@ -170,6 +173,7 @@ def process_image(
         processed_size=loaded.processed_size,
         people=people,
         subjects=subjects,
+        primary_subject_id=primary_subject_id,
         preview_path=preview_path,
         manifest_path=manifest_path,
         warnings=tuple(result_warnings),
@@ -187,6 +191,7 @@ def process_image(
             processed_size=loaded.processed_size,
             people=people,
             subjects=subjects,
+            primary_subject_id=primary_subject_id,
             preview_path=preview_path,
             warnings=(
                 *result_warnings,

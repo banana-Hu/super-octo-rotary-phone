@@ -55,6 +55,7 @@ def test_result_serializes_paths_and_enums() -> None:
                 pixel_area=12_000,
             ),
         ),
+        primary_subject_id=1,
     )
 
     payload = result.to_dict()
@@ -65,6 +66,7 @@ def test_result_serializes_paths_and_enums() -> None:
     assert payload["people"][0]["source_box"] == [10, 20, 110, 220]
     assert payload["subjects"][0]["member_person_ids"] == [1]
     assert payload["subjects"][0]["output_path"] == "subjects/subject_01.png"
+    assert payload["primary_subject_id"] == 1
 
 
 def test_result_serializes_artifacts_relative_to_output_directory(tmp_path: Path) -> None:

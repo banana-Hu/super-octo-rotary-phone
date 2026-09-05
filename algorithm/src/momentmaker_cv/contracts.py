@@ -123,6 +123,7 @@ class ProcessingResult:
     error: str | None = None
     timing_ms: dict[str, float] = field(default_factory=dict)
     subjects: tuple[SubjectCutout, ...] = ()
+    primary_subject_id: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -134,6 +135,7 @@ class ProcessingResult:
             "processed_size": list(self.processed_size) if self.processed_size else None,
             "people": [person.to_dict(self.output_dir) for person in self.people],
             "subjects": [subject.to_dict(self.output_dir) for subject in self.subjects],
+            "primary_subject_id": self.primary_subject_id,
             "preview_path": (
                 _artifact_path(self.preview_path, self.output_dir) if self.preview_path else None
             ),

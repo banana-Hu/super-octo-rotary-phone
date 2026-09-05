@@ -53,6 +53,7 @@ def test_pipeline_exports_transparent_people_preview_and_manifest(tmp_path: Path
     assert result.status is ProcessingStatus.SUCCESS
     assert len(result.people) == 1
     assert len(result.subjects) == 1
+    assert result.primary_subject_id == 1
     assert result.people[0].output_path.exists()
     assert result.preview_path and result.preview_path.exists()
     assert result.manifest_path and result.manifest_path.exists()
@@ -205,3 +206,27 @@ def test_pipeline_falls_back_when_foreground_model_fails(tmp_path: Path) -> None
     assert result.status is ProcessingStatus.SUCCESS
     assert result.subjects[0].mode == "people"
     assert any("foreground unavailable" in warning for warning in result.warnings)
+
+
+def test_pipeline_marks_largest_subject_as_primary(tmp_path: Path) -> None:
+    source = tmp_path / "two-distant-people.png"
+    Image.new("RGB", (120, 80), "white").save(source)
+    small = np.zeros((80, 120), dtype=np.float32)
+    small[20:60, 5:20] = 1.0
+    large = np.zeros((80, 120), dtype=np.float32)
+    large[5:75, 55:110] = 1.0
+
+    result = process_image(
+        source,
+        tmp_path / "output",
+        CutoutOptions(min_area_ratio=0),
+        FakeSegmenter(
+            [
+                MaskPrediction(0.99, (5, 20, 20, 60), small),
+                MaskPrediction(0.98, (55, 5, 110, 75), large),
+            ]
+        ),
+    )
+
+    assert len(result.subjects) == 2
+    assert result.primary_subject_id == 2
