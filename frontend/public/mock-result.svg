@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1100" role="img" aria-label="MomentMaker 演示成品">
+  <rect width="800" height="1100" fill="#e7b261"/>
+  <circle cx="620" cy="310" r="170" fill="#f5e99f"/>
+  <path d="M0 640 Q240 420 470 670 V1100 H0Z" fill="#596d4b"/>
+  <path d="M380 1100 Q540 580 800 540 V1100Z" fill="#c94f33"/>
+  <g fill="#282e29" font-family="sans-serif" font-weight="700">
+    <text x="65" y="95" font-size="24">MOMENT ARCHIVE · 2026</text>
+    <text x="65" y="270" font-size="72">热爱，就要</text>
+    <text x="65" y="360" font-size="72">大声一点！</text>
+    <text x="65" y="1040" font-size="22">KEEP THIS MOMENT ✦</text>
+  </g>
+</svg>

@@ -2,6 +2,16 @@
 
 项目后续开发约定见 [前端开发与联调标准](FRONTEND_STANDARD.md)，执行要求见 [AGENTS.md](AGENTS.md)。当前阶段仍为 HTML/CSS；后续联调版使用 React + Vite + TypeScript + Tailwind CSS + Axios，并通过 REST API 与每 2 秒轮询获取任务进度。本次仅更新规范，尚未迁移技术栈或接入后端。
 
+## React 联调版
+
+`frontend/` 已建立 React + Vite + TypeScript + Tailwind CSS + Axios 前端，沿用米白、橙色视觉。默认运行本地 Mock 演示；真实 HTTP 字段和环境配置见 [frontend/API_CONTRACT.md](frontend/API_CONTRACT.md)。仓库目前没有 FastAPI HTTP 服务，因此不能把 Mock 流程视为真实前后端联调完成。
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
 直接在浏览器打开 `index.html` 即可浏览。不需要安装依赖或构建。
 
 ## 页面
